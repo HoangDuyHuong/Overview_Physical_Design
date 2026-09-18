@@ -1,107 +1,63 @@
-##########
-# Set Up
-##########
-set STAGE 00_init_design
+editDelete -type Special -use POWER
+### pg connection for sram ###
 
-setMultiCpuUsage -localCpu $env(CPU_NUM)
+globalNetConnect PWR -type pgpin -pin VDDARRAY  -inst * -override
+globalNetConnect PWR -type pgpin -pin VDDARRAY! -inst * -override
+globalNetConnect PWR -type pgpin -pin VDD!      -inst * -override
+globalNetConnect GND -type pgpin -pin VSS!      -inst * -override
+# refer for IOPAD pg connection /ictc/teacher_data/ictc_thenguyen/croc/openroad/scripts/power_connect.tcl
 
-setPreference ConstrainUserXGrid 0.1
-setPreference ConstrainUserXOffset 0.1
-setPreference ConstrainUserYGrid 0.1
-setPreference ConstrainUserYOffset 0.1
-setPreference SnapAllConer 1
+#set box [dbShape -output rect [dbGet [dbGet top.insts.cell.baseClass block -p2 ].box ] SIZE 10]
+#createRouteBlk -name sram_rblk -layer Metal5 -box $box
 
-set central_path .../pd/data 
-source .../all_lef_files.tcl 
-set init_verilog .../croc_chip_yosys.v 
-set init_design_uniquify 1
-set init_design_settop 1
-set init_top_cell croc_chip 
-set init_lef_file $init_lef_files
-set init_mmmc_file .../croc_mmmc.view 
-set init_pwr_net {VDD}
-set init_gnd_net {VSS}
-init_design 
+deselectAll
+selectInst i_croc_soc/i_croc/gen_sram_bank_1__i_sram/gen_512x32x8x1_i_cut
+set box_1 [dbShape -output rect [dbGet selected.box ] SIZE 10]
+createRouteBlk -name sram_rblk -layer Metal5 -box $box_1
 
-puts "Done init design. Pls check log file if any errors during init design"
-return 
+deselectAll
+selectInst i_croc_soc/i_croc/gen_sram_bank_0__i_sram/gen_512x32x8x1_i_cut
+set box_2 [dbShape -output rect [dbGet selected.box ] SIZE 10]
+createRouteBlk -name sram_rblk -layer Metal5 -box $box_2
 
-saveDesign SAVED/${STAGE}_init.ivns
+sroute -connect { blockPin corePin floatingStripe } -layerChangeRange { Metal1 TopMetal2 } -blockPinTarget { nearestRingStripe nearestTarget } -corePinTarget { firstAfterRowEnd } -floatingStripeTarget { blockring padring ring stripe ringpin blockpin followpin } -allowJogging 1 -crossoverViaLayerRange { Metal1 TopMetal2 } -nets {PWR GND} -allowLayerChange 1 -blockPin useLef -targetViaLayerRange { Metal1 TopMetal2 }
 
-#check lib usage
-check_library -all_lib_cell -place > rpt/${STAGE}/check_lib.rpt
+setAddStripeNode -reset
+setAddStripeNode -stacked_via_top_layer Metal3 -stacked_via_bottom_layer Metal1 -stapling_nets_style side_to_side
+addStripe -layer Metal3 -direction vertical -nets {PWR GND} -width 1 -set_to_set_distance 15 -spacing 2 -area {248.16 248.04 1392.0 1392.06}
 
-#update name 
-source ${central_path}/update_name.tcl 
+setAddStripeNode -reset
+setAddStripeNode -stacked_via_top_layer Metal4 -stacked_via_bottom_layer Metal3 -stapling_nets_style side_to_side
+addStripe -layer Metal4 -direction horizontal -nets {PWR GND} -width 1 -set_to_set_distance 33 -spacing 2 -area {248.16 248.04 1392.0 1392.06}
 
-############
-#Create Row
-############
-deleteRow -all 
-initCoreRow
-cutRow 
+setAddStripeNode -stacked_via_top_layer Metal5 -stacked_via_bottom_layer Metal4 -stapling_nets_style side_to_side
+addStripe -layer Metal5 -direction vertical -nets {PWR GND} -width 1 -set_to_set_distance 15 -spacing 2 -area {248.16 248.04 1392.0 1392.06}
+# editDelete -type Special -use POWER -layer {TopMetal1 TopMetal2}
+setAddStripeNode -stacked_via_top_layer TopMetal1 -stacked_via_bottom_layer Metal5 -stapling_nets_style side_to_side
+addStripe -layer TopMetal1 -direction horizontal -nets {PWR GND} -width 4 -set_to_set_distance 33 -spacing 4 -area {248.16 248.04 1392.0 1392.06}
 
-##############
-# Crate track
-##############
-add_tracks -offset {Metal1 vert 0 Metal2 horiz 0 Metal3 vert 0 Metal4 horiz 0 Metal5 vert 0 TopMetal1 horiz 0 TopMetal2 vert 0}
+setAddStripeNode -stacked_via_top_layer TopMetal2 -stacked_via_bottom_layer TopMetal1 -stapling_nets_style side_to_side
+addStripe -layer TopMetal2 -direction vertical -nets {PWR GND} -width 4 -set_to_set_distance 30 -spacing 4
 
-############
-# Report Uti 
-############
-checkFPlan -reportUtil > rpt/${STAGE}/check_lib.rpt
+#deleteRouteBlk for sram
+deleteRouteBlk -name sram_rblk
+editPowerVia -nets PWR -add_vias true -top_layer TopMetal1 -area {609.6 191.94 1412.16 464.52} -uda -orthogonal_only
+editPowerVia -nets GND -add_vias true -top_layer TopMetal1 -area {609.6 191.94 1412.16 464.52} -uda -orthogonal_only
 
-####################
-# Placed hardMacros
-####################
-dbGet [dbGet top.insts.cell.baseClass block -p2].pHaloTop 10
-dbGet [dbGet top.insts.cell.baseClass block -p2].pHaloBot 10
-dbGet [dbGet top.insts.cell.baseClass block -p2].pHaloLeft 10
-dbGet [dbGet top.insts.cell.baseClass block -p2].pHaloRight 10
+#set cmd "editPowerVia -nets PWR -add_vias true -top_layer TopMetal1 -area  $box -uda -orthogonal_only"
+#eval $cmd
+#set cmd "editPowerVia -nets GND -add_vias true -top_layer TopMetal1 -area  $box -uda -orthogonal_only"
+#eval $cmd
 
-placeInstance {i_croc_soc/i_croc/gen_sram_bank_1__i_sram/gen_512x32x8x1_i_cut} -fixed {620.07 202.36}
-placeInstance {i_croc_soc/i_croc/gen_sram_bank_0__i_sram/gen_512x32x8x1_i_cut} -fixed {620.07 335.84}
+set cmd "editPowerVia -nets PWR -add_vias true -top_layer TopMetal1 -area  $box_1 -uda -orthogonal_only"
+eval $cmd
+set cmd "editPowerVia -nets GND -add_vias true -top_layer TopMetal1 -area  $box_1 -uda -orthogonal_only"
+eval $cmd
 
-###################
-# Check design
-###################
+set cmd "editPowerVia -nets PWR -add_vias true -top_layer TopMetal1 -area  $box_2 -uda -orthogonal_only"
+eval $cmd
+set cmd "editPowerVia -nets GND -add_vias true -top_layer TopMetal1 -area  $box_2 -uda -orthogonal_only"
+eval $cmd
 
-checkDesign -all 
-
-###############
-#Global Connect 
-###############
-clearGlobalNets
-globalNetConnect VDD -type pgpin -pin VDD -insts * -override
-globalNetConnect VSS -type pgpin -pin VSS -insts * -override
-
-############
-# Add endcap
-############
-setEndCapMode -prefix ENDCAP -leftEdge sky130_fd_sc_hd__endcap -rightEdge sky130_fd_sc_hd__endcap
-addEndCap 
-
-verifyEndCap
-
-###############
-# Add PG Mesh
-###############
-source -e -v .../PG/create_pg.tcl
-verifyPowerVia
-
-# Check open 
-verify_connectivity -net {VDD VSS}
-
-saveDesign SAVED/${STAGE}_PG.invs
-return
-
-###############
-# Add Well Tap 
-###############
-addWellTap -cell sky130_fd_sc_hd__tapvpwrvgnd_1 -cellInterval 40 -inRowOffset 25 -prefix WELLTAP 
-
-saveDesign SAVED/${STAGE}_PG.invs
-
-# Report Timing
-timeDesign -prePlace -pathReport -slackReport -numPath 1000 -prefix ${STAGE}_prePlace -outDir ./rpt/${STAGE}_prePlace 
-
+###
+#verifyPowerVia
