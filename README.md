@@ -8,12 +8,12 @@ Quy trình tự động hóa thiết kế vật lý (RTL-to-GDS / Netlist-to-GDS
 
 | Stage | Script / Tên quy trình | Nhiệm vụ chính |
 | :--- | :--- | :--- |
-| **00** | `00_init_design_v1.tcl` | Khởi tạo design, load LEF/MMMC, Floorplan, đặt Hard Macro SRAM, Endcap, Well Tap[cite: 1, 2, 3]. |
+| **00** | `00_init_design_v1.tcl` | Khởi tạo design, load LEF/MMMC, Floorplan, đặt Hard Macro SRAM, Endcap, Well Tap. |
 | **PG** | `create_pg.tcl` | Thiết lập mạng lưới phân phối nguồn (Power Grid), Power Rings, SRoute, Add Stripes (Met3-TopMet2) & Power Vias. |
 | **02** | `02_place_opt_v1.tcl` | Đặt vị trí Standard Cells (`place_opt_design`), thêm Tie-Hi/Tie-Lo, kiểm tra Pre-CTS Timing. |
+| **03** | `03_cts.tcl` | Dựng cây xung nhịp (Clock Tree Synthesis), cân bằng Clock Skew, tối ưu và kiểm tra Post-CTS Timing. |
 | **05** | `05_route.tcl` | Cấu hình NanoRoute, gán lớp định tuyến (Routing Layers), chạy `routeDesign` chi tiết và kiểm tra vi phạm DRC. |
 | **06** | `06_route_opt.tcl` | Tối ưu hóa Timing hậu định tuyến (Post-Route Setup/Hold), chèn Filler Cells, xuất file DEF, Netlist và LEF. |
-
 ---
 
 ## Cấu trúc thư mục khuyến nghị
